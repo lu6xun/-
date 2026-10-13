@@ -4,8 +4,6 @@
 
 项目采用简单的模块划分，将游戏规则与窗口、输入、绘制和文件操作分离，便于阅读、维护和无窗口测试。
 
-[快速开始](#快速开始) · [操作说明](#操作说明) · [设计与实现](#设计与实现) · [测试](#测试) · [已知限制](#已知限制)
-
 ## 功能
 
 - **完整流程**：标题、游玩、暂停、失败与满盘胜利，支持重新开始和返回标题。
@@ -15,11 +13,7 @@
 - **本地记录**：最高分保存在用户数据目录，兼容缺失、损坏和读写失败。
 - **可测试逻辑**：19 项 CTest 测试，不需要打开窗口或安装图形依赖即可验证核心规则。
 
-## 快速开始
-
-下载或克隆仓库后，在包含 `CMakeLists.txt` 的项目根目录执行以下命令。
-
-### 环境要求
+## 环境要求
 
 | 工具       | 要求                                                         |
 | ---------- | ------------------------------------------------------------ |
@@ -27,84 +21,6 @@
 | C++ 编译器 | 支持 C++17 和 `std::filesystem`；Windows 首选 Visual Studio 2022 |
 | raylib     | 固定为 5.5，由 CMake FetchContent 自动获取                   |
 | 图形环境   | 桌面窗口环境及支持 OpenGL 3.3 的驱动                         |
-
-首次完整配置需要联网。无需单独安装 raylib，离线构建方式见下文。
-
-### Windows / Visual Studio 2022
-
-安装 Visual Studio 2022 或 Build Tools 的“使用 C++ 的桌面开发”工作负载，包含 MSVC、Windows SDK 和 CMake 工具。
-
-在 PowerShell 中执行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
-.\build\Release\grid_snake.exe
-```
-
-脚本会寻找 PATH 或 Visual Studio 附带的 CMake，配置 x64 Release、构建并运行测试。`ExecutionPolicy Bypass` 仅对当前 PowerShell 进程生效。构建调试版本可添加 `-Configuration Debug`。
-
-若 CMake 和 CTest 已在 PATH 中，也可手动构建：
-
-```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release --parallel
-ctest --test-dir build -C Release --output-on-failure
-.\build\Release\grid_snake.exe
-```
-
-生成的 `build\GridSnake.sln` 可以直接用 Visual Studio 打开。MSVC 构建使用静态运行库，raylib 也以静态库链接。
-
-<details>
-<summary>Windows / MinGW-w64</summary>
-
-
-推荐 MinGW-w64 GCC 12 或更新版本。将 `gcc`、`g++`、`mingw32-make` 和 CMake 加入 PATH：
-
-```powershell
-cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build-mingw --parallel
-ctest --test-dir build-mingw --output-on-failure
-.\build-mingw\grid_snake.exe
-```
-
-GCC 8 及更早版本不受支持；旧版 Windows 标准库缺少完整的 C++17 文件系统支持。不同生成器应使用不同构建目录。
-
-</details>
-
-<details>
-<summary>Linux / macOS</summary>
-
-
-需要支持 C++17 文件系统的编译器（GCC 9+ 或较新的 Clang / AppleClang）、CMake 及 Make 或 Ninja。
-
-Linux 需要 raylib/GLFW 对应的图形开发包，参考 [raylib Linux 构建说明](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux)。macOS 需要 Xcode Command Line Tools，参考 [raylib macOS 构建说明](https://github.com/raysan5/raylib/wiki/Working-on-macOS)。
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-./build/grid_snake
-```
-
-Linux 和 macOS 尚未实际构建验证。
-
-</details>
-
-### 离线构建
-
-在可联网的设备下载 [raylib 5.5 源码包](https://codeload.github.com/raysan5/raylib/tar.gz/refs/tags/5.5)，解压到本机，例如 `D:\deps\raylib-5.5`。指定的目录应直接包含 `CMakeLists.txt` 和 `src/raylib.h`。
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1 -RaylibSource D:\deps\raylib-5.5
-```
-
-也可在 CMake 配置时传入 `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=D:/deps/raylib-5.5`，随后按常规命令构建。
-
-默认在线配置固定获取 raylib **5.5** 并验证 SHA-256；手动指定本地源码时也应使用该版本。压缩包校验值：
-
-```text
-aea98ecf5bc5c5e0b789a76de0083a21a70457050ea4cc2aec7566935f5e258e
-```
 
 ## 操作说明
 
@@ -172,80 +88,6 @@ aea98ecf5bc5c5e0b789a76de0083a21a70457050ea4cc2aec7566935f5e258e
 ```
 
 `snake_core` 只依赖 C++ 标准库；`snake_storage` 独立处理文件读写；raylib 仅用于应用入口和绘制。使用标准库容器和 RAII 管理资源，无手动 `new/delete`。
-
-## 最高分存储
-
-最高分保存在用户数据目录，不写入源码目录：
-
-| 平台    | 默认文件                                                     |
-| ------- | ------------------------------------------------------------ |
-| Windows | `%LOCALAPPDATA%\GridSnake\highscore.txt`                     |
-| macOS   | `$HOME/Library/Application Support/GridSnake/highscore.txt`  |
-| Linux   | `$XDG_DATA_HOME/GridSnake/highscore.txt`，未设置时使用 `$HOME/.local/share/GridSnake/highscore.txt` |
-
-Windows 缺少 `LOCALAPPDATA` 时使用 `%USERPROFILE%\AppData\Local`，并通过 UTF-16 路径支持含中文的用户名。无法确定用户数据位置时仅在内存记录。
-
-文件内容为一个非负整数，允许前后空白。缺失、空文件、负数、溢出、非法内容或读取失败均按 0 处理。新纪录出现时立即保存；保存失败会在界面提示，游戏继续运行，并在退出时重试一次。
-
-## 测试
-
-CTest 注册 **19 项测试**，包含 18 组游戏逻辑测试和 1 组存储测试。检查不依赖 `assert`，Debug 和 Release 均会执行。
-
-| 范围       | 覆盖规则                                                     |
-| ---------- | ------------------------------------------------------------ |
-| 移动与输入 | 普通移动、增长加分、反向与重复输入、快速转向、队列容量和计划方向 |
-| 碰撞与地图 | 四个边界、自身碰撞、进入即将离开的尾格、食物不重叠、满盘胜利 |
-| 状态与计时 | 完整重置、暂停恢复、标题切换、固定步进、异常时间、难度递增及下限 |
-| 随机与存储 | 固定种子、最高分读写、非法内容、溢出和读写失败               |
-
-稀有局面由测试专用友元布置，再调用真实移动逻辑验证；存储测试使用独立临时目录，不修改玩家记录。
-
-### 无窗口测试
-
-关闭游戏目标后不会下载或链接 raylib：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1 -Headless -Configuration Debug
-```
-
-Linux / macOS：
-
-```bash
-cmake -S . -B build-headless -DSNAKE_BUILD_GAME=OFF -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-headless --parallel
-ctest --test-dir build-headless --output-on-failure
-```
-
-运行单项测试（Visual Studio 构建）：
-
-```powershell
-ctest --test-dir build -C Release -R logic.departing_tail --output-on-failure
-```
-
-### 已验证环境
-
-Windows x64，Visual Studio 2022 / MSVC 19.41，CMake 3.29.5：
-
-- 无窗口 Debug 和完整 Release 构建成功，两种配置均通过 19/19 项测试。
-- Windows 构建脚本已跑通配置、编译和测试流程，完整构建使用已校验的本地 raylib 5.5 源码。
-- 已启动窗口并检查标题、游玩、得分变化、难度显示、P 键暂停及最高分写入。
-
-Linux、macOS 和较新 MinGW 尚未实际构建验证；满盘胜利通过逻辑测试验证，未人工在窗口中完成。空格恢复、R 重开和退出按键仍需按下列清单逐项验收。
-
-<details>
-<summary>手动验收清单</summary>
-
-
-- [ ] 标题显示操作说明，Enter 从中央、长度 3、朝右开始。
-- [ ] 方向键与 WASD 均可转向，快速“上、左”分两步执行，直接反向无效。
-- [ ] 吃食物增长并加 10 分，每 5 份食物加速一级。
-- [ ] P 与空格均可暂停/恢复；暂停期间方向输入无效，恢复不连续补走。
-- [ ] 撞墙或撞身显示结果与最终棋盘；R 重开，Enter 返回标题。
-- [ ] 重开清空本局分数、速度和输入状态，保留最高分。
-- [ ] 重启后仍能读取最高分；损坏的记录安全回退到 0。
-- [ ] Esc 和关闭窗口按钮均可退出。
-
-</details>
 
 ## 已知限制
 
